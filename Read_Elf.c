@@ -20,21 +20,18 @@ void read_elf(char* path)
 	}
 
 	//读取elf文件头
-	read_Elf_header();
-
+	fread(&elf64_hdr,1,sizeof(elf64_hdr),elf);
+	print_elf_header();
 	fclose(elf);
 }
 
-void read_Elf_header()
-{
-	//file should be relocated
-	fread(&elf64_hdr,1,sizeof(elf64_hdr),elf);
-
+void print_elf_header(){
 	//打印魔数
 	printf("they are magic number! \n");
 	for(int i = 0; i<16; i++){
 	    printf("%02x ",elf64_hdr.e_ident[i]);
 	}
+
 	printf("\n");
 	printf("Obiect file type is %x \n",elf64_hdr.e_type);
 	printf("Machine type is %x \n",elf64_hdr.e_machine);
