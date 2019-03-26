@@ -1,5 +1,5 @@
-#include<stdio.h>
-#include<string.h>
+#include <stdio.h>
+#include <string.h>
 typedef struct{
 	unsigned char b[8];
 }int64;
@@ -98,34 +98,9 @@ typedef struct
 } Elf64_Phdr;
 
 
-void read_elf();
+void read_elf(char* path);
 void read_Elf_header();
 void read_elf_sections();
 void read_symtable();
 void read_Phdr();
-
-
-//代码段在解释文件中的偏移地址
-unsigned int cadr=0;
-
-//代码段的长度
-unsigned int csize=0;
-
-//代码段在内存中的虚拟地址
-unsigned int vadr=0;
-
-//全局数据段在内存的地址
-unsigned long long gp=0;
-
-//main函数在内存中地址
-unsigned int madr=0;
-
-//程序结束时的PC
-unsigned int endPC=0;
-
-//程序的入口地址
-unsigned int entry=0;
-
-FILE *file=NULL;
-
 
