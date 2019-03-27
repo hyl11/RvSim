@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
-#include "Simulation.h"
+#include <elf.h>
+
 
 void read_elf(char* path);
 void read_elf_header();

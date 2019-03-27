@@ -1,4 +1,6 @@
-#include "Simulation.h"
+#include <elf.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 
 void read_elf(char* path);
@@ -7,10 +9,15 @@ void load_elf_2_memory();
 void print_pro_header(int i,Elf64_Phdr* pro_header);
 void print_elf_header();
 
+//from Simulation.h
+extern unsigned int memory[100000000];
+extern Elf64_Addr memory_offset_2_elf;
+
 
 FILE *elf=NULL;
 Elf64_Ehdr elf64_hdr;
 Elf64_Phdr elf64_phdr;
+Elf64_Addr entry_of_elf ;
 
 int open_file(char* elf_path)
 {
@@ -29,11 +36,12 @@ void read_elf(char* path)
 
 	//读取elf文件头
 	fread(&elf64_hdr,1,sizeof(elf64_hdr),elf);
+	entry_of_elf = elf64_hdr.e_entry;
 	print_elf_header();
 	load_elf_2_memory();
 	fclose(elf);
 }
-
+//将segment加载至模拟内存。
 void load_elf_2_memory(){
 	unsigned phoff = (unsigned)elf64_hdr.e_phoff;
 	unsigned short phnum = (unsigned short)elf64_hdr.e_phnum;

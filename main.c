@@ -1,3 +1,4 @@
+#include "Simulation.h"
 
 extern void read_elf(char* path);
 int main(){
