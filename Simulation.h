@@ -1,11 +1,10 @@
-#include<iostream>
 #include<stdio.h>
 #include<math.h>
-#include <io.h>
-#include <process.h>
 #include<time.h>
+#include <elf.h>
 #include<stdlib.h>
-#include"Reg_def.h"
+#include "Reg_def.h"
+
 
 #define OP_JAL 111
 #define OP_R 51
@@ -44,6 +43,8 @@
 
 //主存
 unsigned int memory[MAX]={0};
+//内存数组相对于elf要求的内存地址的偏移，offset + elf_addr = memory_addr
+Elf64_Addr memory_offset_2_elf;
 //寄存器堆
 REG reg[32]={0};
 //PC
@@ -63,7 +64,7 @@ unsigned int imm5=0;
 
 
 //加载内存
-void load_memory();
+void load_elf_2_memory();
 
 void simulate();
 
@@ -79,17 +80,17 @@ void WB();
 
 
 //符号扩展
-int ext_signed(unsigned int src,int bit);
+int R_ext_signed(unsigned int src,int bit);
 
 //获取指定位
-unsigned int getbit(int s,int e);
+unsigned int R_getbit(unsigned inst,int s,int e);
 
-unsigned int getbit(unsigned inst,int s,int e)
+unsigned int R_getbit(unsigned inst,int s,int e)
 {
 	return 0;
 }
 
-int ext_signed(unsigned int src,int bit)
+int R_ext_signed(unsigned int src,int bit)
 {
     return 0;
 }

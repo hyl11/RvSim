@@ -1,5 +1,5 @@
-#include "Read_Elf.h"
 
+extern void read_elf(char* path);
 int main(){
 	char* path = "/home/lhy/Desktop/testcases/add";
 

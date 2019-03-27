@@ -1,12 +1,20 @@
-#include"Read_Elf.h"
+#include "Simulation.h"
+
+
+void read_elf(char* path);
+void read_elf_header();
+void load_elf_2_memory();
+void print_pro_header(int i,Elf64_Phdr* pro_header);
+void print_elf_header();
+
 
 FILE *elf=NULL;
 Elf64_Ehdr elf64_hdr;
-
+Elf64_Phdr elf64_phdr;
 
 int open_file(char* elf_path)
 {
-	elf = fopen(elf_path,"r");
+	elf = fopen(elf_path,"rb");
 	if(elf == NULL)
 		return 0;
 	return 1;
@@ -22,7 +30,29 @@ void read_elf(char* path)
 	//读取elf文件头
 	fread(&elf64_hdr,1,sizeof(elf64_hdr),elf);
 	print_elf_header();
+	load_elf_2_memory();
 	fclose(elf);
+}
+
+void load_elf_2_memory(){
+	unsigned phoff = (unsigned)elf64_hdr.e_phoff;
+	unsigned short phnum = (unsigned short)elf64_hdr.e_phnum;
+	unsigned short phsize = (unsigned short)elf64_hdr.e_phentsize;
+	//定位程序头，读取程序头信息
+	fseek(elf,phoff,SEEK_SET);
+	Elf64_Phdr* pro_header = (Elf64_Phdr*)malloc(sizeof(Elf64_Phdr)*phnum);
+	fread(pro_header,phnum,sizeof(Elf64_Phdr),elf);
+
+	//拷贝segment到模拟内存的数组开始，并且映射数组起始位置内存地址为第一段segment的起始地址
+	Elf64_Addr real_memory_addr = (Elf64_Addr)memory;
+	memory_offset_2_elf = real_memory_addr - pro_header->p_vaddr;
+	for(int i = 0; i < phnum; i ++){
+		Elf64_Addr dst_addr = memory_offset_2_elf + pro_header->p_vaddr;
+		fseek(elf,pro_header->p_offset,SEEK_SET);
+		fread((void*)dst_addr,pro_header->p_filesz,1,elf);
+		print_pro_header(i,pro_header);
+		pro_header ++;
+	}
 }
 
 void print_elf_header(){
@@ -48,94 +78,11 @@ void print_elf_header(){
 	printf("Section header string table index: %x \n",elf64_hdr.e_shstrndx);
 }
 
-//void read_elf_sections()
-//{
-//
-//	Elf64_Shdr elf64_shdr;
-//
-//	for(int c=0;c<snum;c++)
-//	{
-//		printf(" [%3d]\n",c);
-//
-//		//file should be relocated
-//		fread(&elf64_shdr,1,sizeof(elf64_shdr),file);
-//
-//		printf(" Name: ");
-//
-//		printf(" Type: ");
-//
-//		printf(" Address:  ");
-//
-//		printf(" Offest:  \n");
-//
-//		printf(" Size:  ");
-//
-//		printf(" Entsize:  ");
-//
-//		printf(" Flags:   ");
-//
-//		printf(" Link:  ");
-//
-//		printf(" Info:  ");
-//
-//		printf(" Align: \n");
-//
-// 	}
-//}
-//
-//void read_Phdr()
-//{
-//	Elf64_Phdr elf64_phdr;
-//	for(int c=0;c<pnum;c++)
-//	{
-//		printf(" [%3d]\n",c);
-//
-//		//file should be relocated
-//		fread(&elf64_phdr,1,sizeof(elf64_phdr),file);
-//
-//		printf(" Type:   ");
-//
-//		printf(" Flags:   ");
-//
-//		printf(" Offset:   ");
-//
-//		printf(" VirtAddr:  ");
-//
-//		printf(" PhysAddr:   ");
-//
-//		printf(" FileSiz:   ");
-//
-//		printf(" MemSiz:   ");
-//
-//		printf(" Align:   ");
-//	}
-//}
-//
-//
-//void read_symtable()
-//{
-//	Elf64_Sym elf64_sym;
-//	for(int c=0;c<symnum;c++)
-//	{
-//		printf(" [%3d]   ",c);
-//
-//		//file should be relocated
-//		fread(&elf64_sym,1,sizeof(elf64_sym),file);
-//
-//		printf(" Name:  %40s   ");
-//
-//		printf(" Bind:   ");
-//
-//		printf(" Type:   ");
-//
-//		printf(" NDX:   ");
-//
-//		printf(" Size:   ");
-//
-//		printf(" Value:   \n");
-//
-//	}
-//
-//}
-//
-//
+void print_pro_header(int i,Elf64_Phdr* pro_header){
+	if(i == 0){
+		printf("NO.        offset       Viraddr        filesize        memsize\n");
+	}
+	printf("%d          %x      %x       %x        %x        \n",
+		i,pro_header->p_offset,pro_header->p_vaddr,pro_header->p_filesz,pro_header->p_memsz);
+}
+
