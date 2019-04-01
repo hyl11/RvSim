@@ -39,10 +39,8 @@
 #define F3_SCALL 0
 #define F7_SCALL 0
 
-#define MAX 100000000
-
 //主存
-unsigned int memory[MAX]={0};
+unsigned int memory[100000000]={0};
 //内存数组相对于elf要求的内存地址的偏移，offset + elf_addr = memory_addr
 Elf64_Addr memory_offset_2_elf;
 //寄存器堆
@@ -62,10 +60,6 @@ unsigned int imm7=0;
 unsigned int imm5=0;
 
 
-
-//加载内存
-void load_elf_2_memory();
-
 void simulate();
 
 void IF();
@@ -78,20 +72,11 @@ void MEM();
 
 void WB();
 
-
+Elf64_Addr elf_mem_2_mem(Elf64_Addr elf_addr);
+Elf64_Addr mem_2_elf_mem(Elf64_Addr addr);
 //符号扩展
 int R_ext_signed(unsigned int src,int bit);
 
 //获取指定位
 unsigned int R_getbit(unsigned inst,int s,int e);
-
-unsigned int R_getbit(unsigned inst,int s,int e)
-{
-	return 0;
-}
-
-int R_ext_signed(unsigned int src,int bit)
-{
-    return 0;
-}
 

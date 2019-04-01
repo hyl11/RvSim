@@ -1,15 +1,8 @@
 #include "Simulation.h"
-using namespace std;
 
-extern void read_elf();
-extern unsigned int cadr;
-extern unsigned int csize;
-extern unsigned int vadr;
-extern unsigned long long gp;
-extern unsigned int madr;
+extern void read_elf(char* path);
 extern unsigned int endPC;
-extern unsigned int entry;
-extern FILE *file;
+extern unsigned int entry_of_elf;
 
 
 //指令运行数
@@ -18,37 +11,24 @@ long long inst_num=0;
 //系统调用退出指示
 int exit_flag=0;
 
-//加载代码段
-//初始化PC
-void load_memory()
-{
-	fseek(file,cadr,SEEK_SET);
-	fread(&memory[vadr>>2],1,csize,file);
-
-	vadr=vadr>>2;
-	csize=csize>>2;
-	fclose(file);
-}
-
 int main()
 {
-	//解析elf文件
-	read_elf();
-	
-	//加载内存
-	load_memory();
+	//解析elf文件,并读取至模拟内存
+	char* path = "/home/lhy/Desktop/testcases/add";
+
+	read_elf(path);
 
 	//设置入口地址
-	PC=entry>>2;
+	PC=entry_of_elf>>2;
 	
 	//设置全局数据段地址寄存器
-	reg[3]=gp;
+//	reg[3]=gp;
 	
-	reg[2]=MAX/2;//栈基址 （sp寄存器）
+	reg[2]=100000000/2;//栈基址 （sp寄存器）
 
 	simulate();
 
-	cout <<"simulate over!"<<endl;
+	printf("simulate over!\n");
 
 	return 0;
 }
@@ -76,7 +56,6 @@ void simulate()
             break;
 
         reg[0]=0;//一直为零
-
 	}
 }
 
@@ -247,4 +226,11 @@ void WB()
 	//read MEM_WB
 
 	//write reg
+}
+
+Elf64_Addr elf_mem_2_mem(Elf64_Addr elf_addr){
+	return elf_addr + memory_offset_2_elf;
+}
+Elf64_Addr mem_2_elf_mem(Elf64_Addr addr){
+	return addr - memory_offset_2_elf;
 }
