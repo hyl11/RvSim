@@ -47,10 +47,10 @@ void simulate()
 		WB();
 
 		//更新中间寄存器
-		IF_ID=IF_ID_old;
-		ID_EX=ID_EX_old;
-		EX_MEM=EX_MEM_old;
-		MEM_WB=MEM_WB_old;
+		IF_ID_Read=IF_ID_Write;
+		ID_EX_Read=ID_EX_Write;
+		EX_MEM_Read=EX_MEM_Write;
+		MEM_WB_Read=MEM_WB_Write;
 
         if(exit_flag==1)
             break;
@@ -64,16 +64,16 @@ void simulate()
 void IF()
 {
 	//write IF_ID_old
-	IF_ID_old.inst=memory[PC];
+	IF_ID_Write.inst=memory[PC];
 	PC=PC+1;
-	IF_ID_old.PC=PC;
+	IF_ID_Write.PC=PC;
 }
 
 //译码
 void ID()
 {
 	//Read IF_ID
-	unsigned int inst=IF_ID.inst;
+	unsigned int inst=IF_ID_Read.inst;
 	int EXTop=0;
 	unsigned int EXTsrc=0;
 
@@ -81,112 +81,40 @@ void ID()
 	char Branch,MemRead,MemWrite;
 	char RegWrite,MemtoReg;
 
-	OP = R_getbit(inst,0,6)
+	OP = R_getbit(inst,0,6);
 	
 
 	switch(OP){
 		case OP_R:{
+			handle_R_inst(inst,CPU_ID);
 			break;
 		}
-		case OP_I:{
+		case OP_L_I:
+		case OP_UN_SIG_I:
+		case OP_SIG_I:
+		case OP_J_I:
+		case OP_C_I:{
+			handle_I_inst(inst,CPU_ID);
 			break;
 		}
+		case OP_SB:
 		case OP_S:{
+			handle_S_inst(inst,CPU_ID);
 			break;
 		}
-		case OP_SB:{
+		case OP_UJ:
+		case OP_U_A:
+		case OP_U_L:{
+			handle_U_inst(inst,CPU_ID);
 			break;
 		}
-		case OP_U:{
-			break;
-		}
-		case OP_UJ:{
+		default:{
+			printf("Wrong Opcode! %x\n",OP);
 			break;
 		}
 
 	}
-
-	if(OP==OP_R)
-	{
-		if(fuc3==F3_ADD&&fuc7==F7_ADD)
-		{
-            EXTop=0;
-			RegDst=0;
-			ALUop=0;
-			ALUSrc=0;
-			Branch=0;
-			MemRead=0;
-			MemWrite=0;
-			RegWrite=0;
-			MemtoReg=0;
-		}
-		else
-		{
-		   
-		}
-	}
-	else if(OP==OP_I)
-    {
-        if(fuc3==F3_ADDI)
-        {
-            
-        }
-        else
-        {
-           
-        }
-    }
-    else if(OP==OP_SW)
-    {
-        if(fuc3==F3_SB)
-        {
-           
-        }
-        else
-        {
-           
-        }
-    }
-    else if(OP==OP_LW)
-    {
-        if(fuc3==F3_LB)
-        {
-			
-        }
-        else
-        {
-
-        }
-    }
-    else if(OP==OP_BEQ)
-    {
-        if(fuc3==F3_BEQ)
-        {
-			
-        }
-        else
-        {
-           
-        }
-    }
-    else if(OP==OP_JAL)
-    {
-        
-    }
-    else
-    {
 		
-    }
-
-	//write ID_EX_old
-	ID_EX_old.Rd=rd;
-	ID_EX_old.Rt=rt;
-	ID_EX_old.Imm=ext_signed(EXTsrc,EXTop);
-	//...
-
-	ID_EX_old.Ctrl_EX_ALUOp=ALUop;
-	//....
-
 }
 
 //执行
@@ -259,4 +187,68 @@ unsigned R_getbit(unsigned inst,int b,int e){
 	unsigned t0 = (1 << (e+1)) -1;
 	unsigned t1 = t0 & inst;
 	return t1 >> b;
+}
+
+void handle_R_inst(unsigned inst,unsigned stage){
+
+	switch(stage){
+		case CPU_ID:{
+			ID_EX_Write.rd = R_getbit(inst,7,11);
+			ID_EX_Write.rs1 = R_getbit(inst,15,19);
+			ID_EX_Write.rs2 = R_getbit(inst,20,24);
+			ID_EX_Write.func3 = R_getbit(inst,12,14);
+			ID_EX_Write.func7 = R_getbit(inst,25,31);
+			break;
+		}
+		case CPU_EXE:{
+			func3 = ID_EX_Read.func3;
+			func7 = ID_EX_Read.func7;
+			R_rs1 = reg[ID_EX_Read.rs1];
+			R_rs2 = reg[ID_EX_Read.rs2];
+			switch(func3){
+				case 0:{
+					
+				}
+				case 1:
+				case 2:
+				case 4:
+				case 5:
+				case 6:
+				case 7:
+			}
+			break;
+		}
+	}
+}
+void handle_I_inst(unsigned inst,unsigned stage){
+	switch(stage){
+		case CPU_ID:{
+			ID_EX_Write.rd = R_getbit(inst,7,11);
+			ID_EX_Write.rs1 = R_getbit(inst,15,19);
+			ID_EX_Write.func3 = R_getbit(inst,12,14);
+			ID_EX_Write.imm12 = R_getbit(inst,20,31);
+			break;
+		}
+	}
+}
+void handle_U_inst(unsigned inst,unsigned stage){
+	switch(stage){
+		case CPU_ID:{
+			ID_EX_Write.rd = R_getbit(inst,7,11);
+			ID_EX_Write.imm20 = R_getbit(inst,12,31);
+			break;
+		}
+	}
+}
+void handle_S_inst(unsigned inst,unsigned stage){
+	switch(stage){
+		case CPU_ID:{
+			ID_EX_Write.rs1 = R_getbit(inst,15,19);
+			ID_EX_Write.rs2 = R_getbit(inst,20,24);
+			ID_EX_Write.func3 = R_getbit(inst,12,14);
+			ID_EX_Write.imm5 = R_getbit(inst,7,11);
+			ID_EX_Write.imm7 = R_getbit(inst,25,31);
+			break;
+		}
+	}
 }

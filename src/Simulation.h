@@ -5,7 +5,6 @@
 #include<stdlib.h>
 #include "Reg_def.h"
 
-
 #define OP_JAL 111
 
 #define F3_ADD 0
@@ -50,14 +49,14 @@ int PC=0;
 
 //各个指令解析段
 unsigned int OP=0;
-unsigned int fuc3=0,fuc7=0;
+unsigned int func3=0,func7=0;
 int shamt=0;
-int rs=0,rt=0,rd=0;
+unsigned int rs1=0,rs2=0,rd=0;
 unsigned int imm12=0;
 unsigned int imm20=0;
 unsigned int imm7=0;
 unsigned int imm5=0;
-
+REG R_rs1,R_rs2,R_rd1;
 
 void simulate();
 
@@ -76,6 +75,10 @@ Elf64_Addr mem_2_elf_mem(Elf64_Addr addr);
 //符号扩展
 int R_ext_signed(unsigned int src,int bit);
 
-//获取指定位
+//获取指定位,从begin到end，闭区间，从0开始计数 例如 10011 0-2位是011
 unsigned R_getbit(unsigned inst,int b,int e);
-
+//处理各种类型的指令,在cpu流水线的各个阶段
+void handle_R_inst(unsigned inst,unsigned stage);
+void handle_I_inst(unsigned inst,unsigned stage);
+void handle_U_inst(unsigned inst,unsigned stage);
+void handle_S_inst(unsigned inst,unsigned stage);
