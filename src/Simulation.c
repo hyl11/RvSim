@@ -81,10 +81,30 @@ void ID()
 	char Branch,MemRead,MemWrite;
 	char RegWrite,MemtoReg;
 
-	rd=getbit(inst,7,11);
-	fuc3=getbit(inst,0,0);
-	//....
+	OP = R_getbit(inst,0,6)
+	
 
+	switch(OP){
+		case OP_R:{
+			break;
+		}
+		case OP_I:{
+			break;
+		}
+		case OP_S:{
+			break;
+		}
+		case OP_SB:{
+			break;
+		}
+		case OP_U:{
+			break;
+		}
+		case OP_UJ:{
+			break;
+		}
+
+	}
 
 	if(OP==OP_R)
 	{
@@ -233,4 +253,10 @@ Elf64_Addr elf_mem_2_mem(Elf64_Addr elf_addr){
 }
 Elf64_Addr mem_2_elf_mem(Elf64_Addr addr){
 	return addr - memory_offset_2_elf;
+}
+
+unsigned R_getbit(unsigned inst,int b,int e){
+	unsigned t0 = (1 << (e+1)) -1;
+	unsigned t1 = t0 & inst;
+	return t1 >> b;
 }
