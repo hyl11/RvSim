@@ -7,7 +7,6 @@
 
 
 #define OP_JAL 111
-#define OP_R 51
 
 #define F3_ADD 0
 #define F3_MUL 0
@@ -15,7 +14,7 @@
 #define F7_MSE 1
 #define F7_ADD 0
 
-#define OP_I 19
+
 #define F3_ADDI 0
 
 #define OP_SW 35
@@ -78,5 +77,5 @@ Elf64_Addr mem_2_elf_mem(Elf64_Addr addr);
 int R_ext_signed(unsigned int src,int bit);
 
 //获取指定位
-unsigned int R_getbit(unsigned inst,int s,int e);
+unsigned R_getbit(unsigned inst,int b,int e);
 
