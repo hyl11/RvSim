@@ -74,47 +74,27 @@ void ID()
 {
 	//Read IF_ID
 	unsigned int inst=IF_ID_Read.inst;
-	int EXTop=0;
-	unsigned int EXTsrc=0;
-
-	char RegDst,ALUop,ALUSrc;
-	char Branch,MemRead,MemWrite;
-	char RegWrite,MemtoReg;
-
-	OP = R_getbit(inst,0,6);
+	//获取执行阶段所需的全部信息
+	OP = ID_EX_Write.opcode = R_getbit(inst,0,6);
+	rs1 = ID_EX_Write.rs1 = R_getbit(inst,15,19);
+	rs2 = ID_EX_Write.rs2 = R_getbit(inst,20,24);
+	imm5 = rd = ID_EX_Write.imm5 = ID_EX_Write.rd = R_getbit(inst,7,11);
+	func3 = ID_EX_Write.func3 = R_getbit(inst,12,14);
+	imm7 = func7 = ID_EX_Write.imm7 = ID_EX_Write.func7 = R_getbit(inst,25,31);
+	imm12 = ID_EX_Write.imm12 = R_getbit(inst,20,31);
+	imm20 = ID_EX_Write.imm20 = R_getbit(inst,12,31);
 	
-
-	switch(OP){
-		case OP_R:{
-			handle_R_inst(inst,CPU_ID);
-			break;
-		}
-		case OP_L_I:
-		case OP_UN_SIG_I:
-		case OP_SIG_I:
-		case OP_J_I:
-		case OP_C_I:{
-			handle_I_inst(inst,CPU_ID);
-			break;
-		}
-		case OP_SB:
-		case OP_S:{
-			handle_S_inst(inst,CPU_ID);
-			break;
-		}
-		case OP_UJ:
-		case OP_U_A:
-		case OP_U_L:{
-			handle_U_inst(inst,CPU_ID);
-			break;
-		}
-		default:{
-			printf("Wrong Opcode! %x\n",OP);
-			break;
-		}
-
+	//检查寄存器是否存在数据冒险，存在则暂停一周期
+	if(reg_using[rs1] == 1 || reg_using[rs2] == 1){
+		ID_EX_Write = ID_EX_Read;
+		return;
 	}
-		
+	//根据指令生成信号
+	inst_2_sig();
+
+
+
+
 }
 
 //执行
@@ -409,3 +389,97 @@ void handle_S_inst(unsigned inst,unsigned stage){
 void ERROR(unsigned inst,unsigned func3,unsigned func7,unsigned OP){
 	printf("Error! unvalid inst! OP=%x,func3=%x,func7=%x,inst=%x\n",OP,func3,func7,inst);
 }
+
+void inst_2_sig(){
+	switch(OP){
+		case 0x33:{
+			inst_2_sig_R();
+			break;
+		}
+		case 0x03:
+		case 0x13:
+		case 0x1B:
+		case 0x67:
+		case 0x73:{
+			inst_2_sig_I();
+			break;
+		}
+		case 0x63:
+		case 0x23:{
+			inst_2_sig_S();
+			break;
+		}
+		case 0x17:
+		case 0x37:
+		case 0x6f:{
+			inst_2_sig_U();
+			break;
+		}
+	}
+}
+void inst_2_sig_R(){
+
+	ID_EX_Write.ALU_src1 = reg[rs1];
+	ID_EX_Write.ALU_src2 = reg[rs2];
+	ID_EX_Write.MEM_R = ID_EX_Write.MEM_W = 0;
+	ID_EX_Write.MEM_wide = 32;
+
+	switch(func3){
+		//加减乘（不考虑溢出）
+		case 0:{
+			if(func7 == 0x0){
+				ID_EX_Write.ALU_type = ALU_ADD;
+			}else if(func7 == 0x1){
+				ID_EX_Write.ALU_type = ALU_MUL;
+			}else if(func7 == 0x20){
+				ID_EX_Write.ALU_type = ALU_SUB;
+			}
+			break;
+		}
+		//左移，溢出型64位乘法
+		case 1:{
+			if(func7 == 0){
+				ID_EX_Write.ALU_type = ALU_SL;
+			}else if(func7 == 1){
+				ID_EX_Write.ALU_type = ALU_MUL;
+			}
+			break;
+		}
+		//小于则设置1
+		case 2:{
+			ID_EX_Write.ALU_type = ALU_COM;
+			break;
+		}
+		//异或，除法
+		case 4:{
+			if(func7 == 0){
+				ID_EX_Write.ALU_type = ALU_XOR;
+			}else if(func7 == 1){
+				ID_EX_Write.ALU_type = ALU_DIV;
+			}
+			break;
+		}
+		//右移，包括逻辑右移和算数右移
+		case 5:{
+			ID_EX_Write.ALU_type = ALU_SR;
+			break;
+		}
+		case 6:{          //或和摸
+			if(func7 == 0){        
+				ID_EX_Write.ALU_type = ALU_OR;
+			}else if(func7 == 1){
+				ID_EX_Write.ALU_type = ALU_MOD;
+			}
+			break;
+		}
+		case 7:{          //与
+			ID_EX_Write.ALU_type = ALU_AND;
+			break;
+		}
+	}
+}
+void inst_2_sig_I(){
+	
+}
+void inst_2_sig_S();
+void inst_2_sig_U();

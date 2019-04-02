@@ -5,44 +5,14 @@
 #include<stdlib.h>
 #include "Reg_def.h"
 
-#define OP_JAL 111
-
-#define F3_ADD 0
-#define F3_MUL 0
-
-#define F7_MSE 1
-#define F7_ADD 0
-
-
-#define F3_ADDI 0
-
-#define OP_SW 35
-#define F3_SB 0
-
-#define OP_LW 3
-#define F3_LB 0
-
-#define OP_BEQ 99
-#define F3_BEQ 0
-
-#define OP_IW 27
-#define F3_ADDIW 0
-
-#define OP_RW 59
-#define F3_ADDW 0
-#define F7_ADDW 0
-
-
-#define OP_SCALL 115
-#define F3_SCALL 0
-#define F7_SCALL 0
-
 //主存
 unsigned int memory[100000000]={0};
 //内存数组相对于elf要求的内存地址的偏移，offset + elf_addr = memory_addr
 Elf64_Addr memory_offset_2_elf;
 //寄存器堆
 REG reg[32]={0};
+//寄存器堆使用情况,用来控制流水线数据冒险，初始状态均是没有即将被写入的状态
+int reg_using[32] = {0};
 //PC
 int PC=0;
 
@@ -82,3 +52,11 @@ void handle_R_inst(unsigned inst,unsigned stage);
 void handle_I_inst(unsigned inst,unsigned stage);
 void handle_U_inst(unsigned inst,unsigned stage);
 void handle_S_inst(unsigned inst,unsigned stage);
+
+//根据译码结果生成ID_EX中的信号
+void inst_2_sig();
+//分别对四种指令类型进行 处理生成信号
+void inst_2_sig_R();
+void inst_2_sig_I();
+void inst_2_sig_S();
+void inst_2_sig_U();

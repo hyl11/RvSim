@@ -8,13 +8,19 @@ struct IFID{
 
 struct IDEX{
 	int PC;
-	unsigned inst;
+	//指令信息
+	unsigned opcode;
 	unsigned rs1,rs2,rd;
 	unsigned func3,func7;
 	unsigned int imm12;
 	unsigned int imm20;
 	unsigned int imm7;
 	unsigned int imm5;
+	//信号信息
+	unsigned ALU_type;      //运算器操作类型，+ - ...
+	REG ALU_src1,ALU_src2;    //运算器源操作数
+	unsigned MEM_R,MEM_W;     //内存读写控制
+	unsigned MEM_wide;      //8 16 32 64对于内存操作的宽度
 }ID_EX_Write,ID_EX_Read;
 
 struct EXMEM{
@@ -57,3 +63,16 @@ struct MEMWB{
 #define CPU_EXE 2
 #define CPU_MEM 3
 #define CPU_WB 4
+
+//ALU 操作类型
+#define ALU_ADD 0
+#define ALU_SUB 1
+#define ALU_MUL 2
+#define ALU_DIV 3
+#define ALU_AND 4
+#define ALU_OR  5
+#define ALU_XOR 6
+#define ALU_SL  7
+#define ALU_SR  8
+#define ALU_MOD 9
+#define ALU_COM 10      //比较
