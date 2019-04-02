@@ -206,15 +206,89 @@ void handle_R_inst(unsigned inst,unsigned stage){
 			R_rs1 = reg[ID_EX_Read.rs1];
 			R_rs2 = reg[ID_EX_Read.rs2];
 			switch(func3){
+				//加减乘（不考虑溢出）
 				case 0:{
-					
+					if(func7 == 0x0){
+						R_rd = R_rs1 + R_rs2;
+					}else if(func7 == 0x1){
+						R_rd = R_rs1 * R_rs2;
+					}else if(func7 == 0x20){
+						R_rd = R_rs1 - R_rs2;
+					}else{
+						ERROR(inst,func3,func7,OP);
+					}
+					break;
 				}
-				case 1:
-				case 2:
-				case 4:
-				case 5:
-				case 6:
-				case 7:
+				//左移，溢出型64位乘法
+				case 1:{
+					if(func7 == 0){
+						R_rd = R_rs1 << R_rs2;
+					}else if(func7 == 1){
+						__uint128_t result = (__uint128_t)R_rs1 * (__uint128_t)R_rs2;
+						R_rd = (REG)(result >> 64);
+					}else{
+						ERROR(inst,func3,func7,OP);
+					}
+					break;
+				}
+				//小于则设置1
+				case 2:{
+					if(func7 == 0){ 
+						if(R_rs1 < R_rs2){
+							R_rd = 1;
+						}else{
+							R_rd = 0;
+						}
+					}else{
+						ERROR(inst,func3,func7,OP);
+					}
+					break;
+				}
+				//异或，除法
+				case 4:{
+					if(func7 == 0){
+						R_rd = R_rs1 ^ R_rs2;
+					}else if(func7 == 1){
+						R_rd = R_rs1 / R_rs2;
+					}else{
+						ERROR(inst,func3,func7,OP);
+					}
+					break;
+				}
+				//右移，包括逻辑右移和算数右移
+				case 5:{
+					if(func7 == 0){           //逻辑右移
+						R_rd = R_rs1 >> R_rs2;
+						R_rd = R_rd & ( 1<<(64-R_rs2) -1);
+					}else if(func7 == 0x20){       //算数右移
+						R_rd = R_rs1 >> R_rs2;
+					}else{
+						ERROR(inst,func3,func7,OP);
+					}
+					break;
+				}
+				case 6:{          //或和摸
+					if(func7 == 0){        
+						R_rd = R_rs1 | R_rs2;
+					}else if(func7 == 1){
+						R_rd = R_rs1 % R_rs2;
+					}else{
+						ERROR(inst,func3,func7,OP);
+					}
+					break;
+				}
+				case 7:{          //与
+					if(func7 == 0){
+						R_rd = R_rs1 & R_rs2;
+					}else{
+						ERROR(inst,func3,func7,OP);
+					}
+					break;
+				}
+				default{
+					ERROR(inst,func3,func7,OP);
+					break;
+				}
 			}
 			break;
 		}
@@ -229,6 +303,78 @@ void handle_I_inst(unsigned inst,unsigned stage){
 			ID_EX_Write.imm12 = R_getbit(inst,20,31);
 			break;
 		}
+		case CPU_EXE:{
+			unsigned opcode = R_getbit(inst,0,6);
+			func3 = ID_EX_Read.func3;
+			R_rs1 = reg[ID_EX_Read.rs1];
+			imm12 = (ID_EX_Read.imm12 << 20) >> 20;
+			if(opcode == OP_L_I){
+				switch(func3){
+					case 0:{
+						Elf64_Addr elfaddr = R_rs1 + imm12;
+						R_rd = *(unsigned char*)(elf_mem_2_mem(elfaddr));
+						R_rd = (R_rd << 56) >> 56;
+						break;
+					}
+					case 1:{
+						Elf64_Addr elfaddr = R_rs1 + imm12;
+						R_rd = *(unsigned short*)(elf_mem_2_mem(elfaddr));
+						R_rd = (R_rd << 48) >> 48;
+						break;
+					}
+					case 2:{
+						Elf64_Addr elfaddr = R_rs1 + imm12;
+						R_rd = *(unsigned int*)(elf_mem_2_mem(elfaddr));
+						R_rd = (R_rd << 32) >> 32;
+						break;
+					}
+					case 3:{
+						Elf64_Addr elfaddr = R_rs1 + imm12;
+						R_rd = *(Elf64_Xword*)(elf_mem_2_mem(elfaddr));
+						break;
+					}
+					default:{
+						ERROR(inst,func3,0,opcode);
+					}
+				}
+			}else if(opcode == OP_UN_SIG_I){
+				switch(func3){
+					case 0:{
+						R_rd = R_rs1 + imm12;
+						break;
+					}
+					case 1:{
+						imm12 = imm12 & 0x1f;
+						R_rd = R_rs1 << imm12;
+						break;
+					}
+					case 2:{
+						R_rd = R_rs1 < imm12 ? 1:0;
+						break;
+					}
+					case 4:{
+						R_rd = R_rs1 ^ imm12;
+						break;
+					}
+					case 5:{       //逻辑右移和算数右移
+						unsigned f7 = R_getbit(inst,25,31);
+						imm12 = imm12 & 0x1f;
+						if(f7 == 0){      //逻辑右移
+							R_rd = R_rs1 >> imm12;
+							R_rd = R_rd & ( 1<<(64-imm12) -1);
+						}else{          //算数右移
+							R_rd = R_rs1 >> imm12;
+						}
+						break;
+					}
+					case 6:{
+						
+					}
+
+				}
+			}
+			break;
+		}
 	}
 }
 void handle_U_inst(unsigned inst,unsigned stage){
@@ -236,6 +382,13 @@ void handle_U_inst(unsigned inst,unsigned stage){
 		case CPU_ID:{
 			ID_EX_Write.rd = R_getbit(inst,7,11);
 			ID_EX_Write.imm20 = R_getbit(inst,12,31);
+			break;
+		}
+		case CPU_EXE:{
+			unsigned opcode = R_getbit(inst,0,6);
+			if(opcode == 0x6f){        //UJ
+
+			}
 			break;
 		}
 	}
@@ -251,4 +404,8 @@ void handle_S_inst(unsigned inst,unsigned stage){
 			break;
 		}
 	}
+}
+
+void ERROR(unsigned inst,unsigned func3,unsigned func7,unsigned OP){
+	printf("Error! unvalid inst! OP=%x,func3=%x,func7=%x,inst=%x\n",OP,func3,func7,inst);
 }

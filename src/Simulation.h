@@ -56,7 +56,7 @@ unsigned int imm12=0;
 unsigned int imm20=0;
 unsigned int imm7=0;
 unsigned int imm5=0;
-REG R_rs1,R_rs2,R_rd1;
+REG R_rs1,R_rs2,R_rd;
 
 void simulate();
 
