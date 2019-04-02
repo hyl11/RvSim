@@ -84,6 +84,7 @@ void ID()
 	imm12 = ID_EX_Write.imm12 = R_getbit(inst,20,31);
 	imm20 = ID_EX_Write.imm20 = R_getbit(inst,12,31);
 	
+
 	//检查寄存器是否存在数据冒险，存在则暂停一周期
 	if(reg_using[rs1] == 1 || reg_using[rs2] == 1){
 		ID_EX_Write = ID_EX_Read;
@@ -479,7 +480,50 @@ void inst_2_sig_R(){
 	}
 }
 void inst_2_sig_I(){
-	
+
+	//获得符号扩展
+	imm12 = (imm12 << 20 ) >> 20;
+	ID_EX_Write.ALU_src1 = reg[rs1];
+	ID_EX_Write.ALU_src2 = imm12;
+	switch(OP){
+		case 0x03:{
+			ID_EX_Write.MEM_R = 1;
+			ID_EX_Write.MEM_W = 0;
+			ID_EX_Write.ALU_type = ALU_ADD;
+			ID_EX_Write.MEM_wide = 8 * (1+func3);
+			break;
+		}
+		case 0x13:{
+			ID_EX_Write.MEM_R = ID_EX_Write.MEM_W = 0;
+			ID_EX_Write.MEM_wide = 32;
+			if(func3 == 0){
+				ID_EX_Write.ALU_type = ALU_ADD;
+			}else if(func3 == 1){
+				ID_EX_Write.ALU_src2 = R_getbit(imm12,0,5);
+				ID_EX_Write.ALU_type = ALU_SL;
+			}else if(func3 == 2){
+				
+				ID_EX_Write.ALU_type = ALU_COM;
+			}else if(func3 == 4){
+				ID_EX_Write.ALU_type = ALU_XOR;
+			}else if(func3 == 5){
+				ID_EX_Write.ALU_type = ALU_SR;
+				ID_EX_Write.ALU_src2 = R_getbit(imm12,0,5);
+			}else if(func3 == 6){
+				ID_EX_Write.ALU_type = ALU_OR;
+			}else if(func3 == 7){
+				ID_EX_Write.ALU_type = ALU_AND;
+			}
+			break;
+		}
+		case 0x1B:{
+			ID_EX_Write.MEM_R = ID_EX_Write.MEM_W = 0;
+			ID_EX_Write.MEM_wide = 32;
+			ID_EX_Write.ALU_type = ALU_ADD;
+			break;
+		}
+
+	}
 }
 void inst_2_sig_S();
 void inst_2_sig_U();
