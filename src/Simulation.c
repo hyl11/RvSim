@@ -522,8 +522,36 @@ void inst_2_sig_I(){
 			ID_EX_Write.ALU_type = ALU_ADD;
 			break;
 		}
+		case 0x67:{            //jalr
+			ID_EX_Write.ALU_src1 = PC;
+			ID_EX_Write.ALU_src2 = 4;
+			ID_EX_Write.ALU_type = ALU_ADD;
+			ID_EX_Write.MEM_R = ID_EX_Write.MEM_W = 0;
+			ID_EX_Write.MEM_wide = 32;
+			break;
+		}
+		case 0x73:{          //ecall
+			ID_EX_Write.ALU_type = ALU_ADD;
+			ID_EX_Write.MEM_R = ID_EX_Write.MEM_W = 0;
+			ID_EX_Write.MEM_wide = 32;
+			break;
+		}
 
 	}
 }
-void inst_2_sig_S();
-void inst_2_sig_U();
+void inst_2_sig_S(){
+	if(OP == 0x23){
+		ID_EX_Write.MEM_W = 1;
+		ID_EX_Write.MEM_R = 0;
+		ID_EX_Write.MEM_wide = (func3 + 1) * 8;
+		ID_EX_Write.ALU_src1 = reg[rs1];
+		ID_EX_Write.ALU_src2 = (imm7 << 5) | imm5;
+		ID_EX_Write.ALU_src2 = (ID_EX_Write.ALU_src2 << 20) >> 20;
+		ID_EX_Write.ALU_type = ALU_ADD;
+	}else if(OP == 0x63){
+		
+	}
+}
+void inst_2_sig_U(){
+
+}

@@ -76,3 +76,4 @@ struct MEMWB{
 #define ALU_SR  8
 #define ALU_MOD 9
 #define ALU_COM 10      //比较
+#define ALU_SYSCALL 11
