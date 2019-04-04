@@ -1,14 +1,6 @@
 typedef unsigned long long REG;
 
-struct IFID{
-	unsigned int inst;
-	int PC;
-}IF_ID_Write,IF_ID_Read;
-
-
-struct IDEX{
-	int PC;
-	//指令信息
+struct Inst{
 	unsigned opcode;
 	unsigned rs1,rs2,rd;
 	unsigned func3,func7;
@@ -16,46 +8,64 @@ struct IDEX{
 	unsigned int imm20;
 	unsigned int imm7;
 	unsigned int imm5;
+};
+
+struct Sign{
 	//信号信息
-	unsigned ALU_type;      //运算器操作类型，+ - ...
-	REG ALU_src1,ALU_src2;    //运算器源操作数
-	unsigned MEM_R,MEM_W;     //内存读写控制
-	unsigned MEM_wide;      //8 16 32 64对于内存操作的宽度
+	unsigned ALUCtr;      //运算器操作类型，+ - ..
+	unsigned MemRe,MemWr;     //内存读写控制
+	unsigned MemWide;      //8 16 32 64对于内存操作的宽度
+	unsigned PCSel;         //0代表选择PC+4，否则选择计算得到跳转地址
+	unsigned Mem2Reg;       //1代表将内存读出数据写入寄存器堆
+	unsigned RegWr;         //1代表写入寄存器堆
+};
+
+struct IFID{
+	unsigned int isAbuble;  //是否是插入的流水线停顿 1则代表是停顿
+	unsigned int inst;
+	int PC;
+}IF_ID_Write,IF_ID_Read;
+
+
+
+struct IDEX{
+	unsigned int isAbuble;  //是否是插入的流水线停顿
+	int PC;
+	//指令信息
+	struct Inst inst;
+	//寄存器数据
+	REG Rs1,Rs2;
+	//分析得到ALU操作数
+	REG AluSrc1,AluSrc2;
+
+	struct Sign sign;
+	
 }ID_EX_Write,ID_EX_Read;
 
 struct EXMEM{
+
+	unsigned int isAbuble;  //是否是插入的流水线停顿
+
 	int PC;
-	unsigned inst;
-	unsigned rs1,rs2,rd;
-	Elf64_Addr mem_addr;
+	struct Inst inst;
+	REG AluOut;
+	REG Rs1,Rs2;
+
+	struct Sign sign;
 
 }EX_MEM_Write,EX_MEM_Read;
 
 struct MEMWB{
-	unsigned inst;
-	unsigned rs1,rs2,rd;
-	int PC;
-	Elf64_Xword data_read;
-}MEM_WB_Write,MEM_WB_Read;
 
-//指令类型定义
-//R
-#define OP_R 0x33
-//I
-#define OP_L_I 0x3
-#define OP_UN_SIG_I 0x13
-#define OP_SIG_I 0x1B
-#define OP_J_I 0x67
-#define OP_C_I 0x73
-//S
-#define OP_S 0x23
-//SB
-#define OP_SB 0x63
-//U
-#define OP_U_A 0x17
-#define OP_U_L 0x37
-//UJ
-#define OP_UJ 0x6f
+	unsigned int isAbuble;  //是否是插入的流水线停顿
+
+	int PC;
+	struct Inst inst;
+	REG MemOut;
+	REG AluOut;
+	
+	struct Sign sign;
+}MEM_WB_Write,MEM_WB_Read;
 
 //cpu流水线阶段
 #define CPU_IF 0
