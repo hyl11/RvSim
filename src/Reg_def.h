@@ -20,12 +20,12 @@ struct Sign{
 	unsigned RegWr;         //1代表写入寄存器堆
 };
 
+
 struct IFID{
 	unsigned int isAbuble;  //是否是插入的流水线停顿 1则代表是停顿
 	unsigned int inst;
 	int PC;
-}IF_ID_Write,IF_ID_Read;
-
+}IF_ID;
 
 
 struct IDEX{
@@ -40,7 +40,7 @@ struct IDEX{
 
 	struct Sign sign;
 	
-}ID_EX_Write,ID_EX_Read;
+}ID_EX;
 
 struct EXMEM{
 
@@ -53,7 +53,7 @@ struct EXMEM{
 
 	struct Sign sign;
 
-}EX_MEM_Write,EX_MEM_Read;
+}EX_MEM;
 
 struct MEMWB{
 
@@ -65,7 +65,7 @@ struct MEMWB{
 	REG AluOut;
 	
 	struct Sign sign;
-}MEM_WB_Write,MEM_WB_Read;
+}MEM_WB;
 
 //cpu流水线阶段
 #define CPU_IF 0

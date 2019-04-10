@@ -40,8 +40,6 @@ void MEM();
 
 void WB();
 
-Elf64_Addr elf_mem_2_mem(Elf64_Addr elf_addr);
-Elf64_Addr mem_2_elf_mem(Elf64_Addr addr);
 //符号扩展
 int R_ext_signed(unsigned int src,int bit);
 
