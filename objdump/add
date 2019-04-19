@@ -2,8 +2,7 @@
 ../testcase/add:     file format elf64-littleriscv
 
 
-Disassembly of section .text:
-
+Disassembly of section .text
 00000000000100b0 <_start>:
    100b0:	00002197          	auipc	gp,0x2
    100b4:	5e818193          	addi	gp,gp,1512 # 12698 <__global_pointer$>

@@ -8,10 +8,10 @@ void load_elf_2_memory();
 void print_pro_header(int i,Elf64_Phdr* pro_header);
 void print_elf_header();
 
-//from Simulation.h
+//from memory.c
 extern unsigned int memory[100000000];
 extern Elf64_Addr memory_offset_2_elf;
-
+extern int endPC ;
 
 FILE *elf=NULL;
 Elf64_Ehdr elf64_hdr;
@@ -36,7 +36,7 @@ void read_elf(char* path)
 	//读取elf文件头
 	fread(&elf64_hdr,1,sizeof(elf64_hdr),elf);
 	entry_of_elf = elf64_hdr.e_entry;
-	print_elf_header();
+//	print_elf_header();
 	load_elf_2_memory();
 	fclose(elf);
 }
@@ -57,7 +57,10 @@ void load_elf_2_memory(){
 		Elf64_Addr dst_addr = memory_offset_2_elf + pro_header->p_vaddr;
 		fseek(elf,pro_header->p_offset,SEEK_SET);
 		fread((void*)dst_addr,pro_header->p_filesz,1,elf);
-		print_pro_header(i,pro_header);
+	//	print_pro_header(i,pro_header);
+		if(i == 0){
+			endPC = entry_of_elf + pro_header->p_filesz;
+		}
 		pro_header ++;
 	}
 }

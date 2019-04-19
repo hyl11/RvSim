@@ -15,7 +15,6 @@ struct Sign{
 	unsigned ALUCtr;      //运算器操作类型，+ - ..
 	unsigned MemRe,MemWr;     //内存读写控制
 	unsigned MemWide;      //8 16 32 64对于内存操作的宽度
-	unsigned PCSel;         //0代表选择PC+4，否则选择计算得到跳转地址
 	unsigned Mem2Reg;       //1代表将内存读出数据写入寄存器堆
 	unsigned RegWr;         //1代表写入寄存器堆
 };

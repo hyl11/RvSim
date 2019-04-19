@@ -1,9 +1,10 @@
 #include "Simulation.h"
+#include "util.h"
 #include <stdio.h>
 
 
 extern void read_elf(char* path);
-unsigned int endPC = 100000000/2;
+unsigned int endPC = 0;;
 extern unsigned int entry_of_elf;
 extern REG memory_read(Elf64_Addr elf_addr,unsigned mem_width);
 extern void memory_write(Elf64_Addr elf_adr,unsigned mem_width,REG data);
@@ -35,14 +36,14 @@ int main()
 
 	printf("simulate over!\n");
 
-	return 0;
+	return 0; 
 }
 
 void simulate()
 {
 	//结束PC的设置
 	int end=(int)endPC/4-1;
-	while(PC!=end)
+	while(PC)
 	{
 
 		//运行
@@ -66,23 +67,16 @@ void IF()
 	//判断是否可以取指令，如果正在分析的指令存在控制冒险，则选择插入停顿，等待冒险
 	if(IF_SHOULD_STOP != 0){
 		IF_SHOULD_STOP =0;
-		IF_ID.isAbuble = 1;
 		return;
 	}
-	
 	IF_ID.inst=memory_read(PC,32) & 0xffffffff;
-	PC=PC+4;
 	IF_ID.PC=PC;
+	PC=PC+4;
 }
 
 //译码
 void ID()
 {
-	//暂停流水线
-	if(IF_ID.isAbuble == 1){
-		ID_EX.isAbuble = 1;
-		return;
-	}
 	//Read IF_ID
 	unsigned int inst=IF_ID.inst;
 	ID_EX.PC = IF_ID.PC;
@@ -98,25 +92,25 @@ void ID()
 	
 
 	//检查寄存器是否存在数据冒险，存在则暂停一周期        //TODO
-	if(reg_using[rs1] != 0 || reg_using[rs2] != 0){
+	if(reg_using[rs1] > 0 || reg_using[rs2] > 0){
 		IF_SHOULD_STOP = 1;
+		ID_EX.isAbuble = 1;
 		return;
 	}
+	ID_EX.isAbuble = 0;
 	ID_EX.Rs1 = reg[rs1];
 	ID_EX.Rs2 = reg[rs2];
 	//根据指令生成信号
-	inst_2_sig();
-
-
-
+	inst_2_sig(inst);
 
 }
 
 void EX(){
 	if(ID_EX.isAbuble == 1){
-		EX_MEM.isAbuble;
+		EX_MEM.isAbuble = 1;
 		return;
 	}
+	EX_MEM.isAbuble = 0;
 	EX_MEM.inst = ID_EX.inst;
 	EX_MEM.PC = ID_EX.PC;
 	EX_MEM.Rs1 = ID_EX.Rs1;
@@ -182,6 +176,7 @@ void EX(){
 			break;
 		}
 		case ALU_SYSCALL:{
+			EX_MEM.isAbuble = 1;
 			if(reg[10] == 1){
 				printf("%d",reg[11]);
 			}else if(reg[10] == 10){
@@ -199,9 +194,9 @@ void EX(){
 			PC = NEW_PC;
 		}else if(func == 1 && ALU_OUT_result != 0){
 			PC = NEW_PC;
-		}else if(func == 4 && ALU_OUT_result < 0){
+		}else if((func == 4 || func == 6)&& (int long long)ALU_OUT_result < 0){
 			PC = NEW_PC;
-		}else if(func == 5 && ALU_OUT_result >= 0){
+		}else if((func == 5 || func == 7)&& (int long long)ALU_OUT_result >= 0){
 			PC == NEW_PC;
 		}
 	}
@@ -229,24 +224,27 @@ void MEM(){
 }
 
 void WB(){
+	int rd = MEM_WB.inst.rd;
 	//停顿
 	if(MEM_WB.isAbuble == 1){
 		return;
 	}else if(MEM_WB.sign.RegWr == 0){
 		return;
 	}else if(MEM_WB.sign.Mem2Reg == 1){      //访问内存操作
-		reg[MEM_WB.inst.rd] = MEM_WB.MemOut;
-		reg_using[MEM_WB.inst.rd] = 0;
+		reg[rd] = MEM_WB.MemOut;
 	}else{
-		reg[MEM_WB.inst.rd] = MEM_WB.AluOut;
-		reg_using[MEM_WB.inst.rd] = 0;
+		reg[rd] = MEM_WB.AluOut;
 	}
-	
+	if(reg_using[rd] > 0){
+		reg_using[rd] --;
+	}
 }
 void inst_2_sig(){
+	
 	switch(OP){
 		case 0x33:{
 			inst_2_sig_R();
+			reg_using[ID_EX.inst.rd] += ID_EX.sign.RegWr;
 			break;
 		}
 		case 0x03:
@@ -255,6 +253,7 @@ void inst_2_sig(){
 		case 0x67:
 		case 0x73:{
 			inst_2_sig_I();
+			reg_using[ID_EX.inst.rd] += ID_EX.sign.RegWr;
 			break;
 		}
 		case 0x63:
@@ -266,6 +265,7 @@ void inst_2_sig(){
 		case 0x37:
 		case 0x6f:{
 			inst_2_sig_U();
+			reg_using[ID_EX.inst.rd] += ID_EX.sign.RegWr;
 			break;
 		}
 	}
@@ -335,21 +335,24 @@ void inst_2_sig_R(){
 void inst_2_sig_I(){
 
 	//获得符号扩展
-	imm12 = (imm12 << 20 ) >> 20;
 	ID_EX.AluSrc1 = reg[rs1];
-	ID_EX.AluSrc2 = imm12;
-	ID_EX.sign.PCSel = 0;
+	ID_EX.AluSrc2 = R_ext_signed(imm12,12);
+
+	ID_EX.sign.RegWr = 1;
+	ID_EX.sign.Mem2Reg = 0;
+	ID_EX.sign.MemRe = ID_EX.sign.MemWr = 0;
+	ID_EX.sign.MemWide = 32;
+
 	switch(OP){
-		case 0x03:{
+		case 0x03:{     //load
 			ID_EX.sign.MemRe = 1;
-			ID_EX.sign.MemWr = 0;
 			ID_EX.sign.ALUCtr = ALU_ADD;
-			ID_EX.sign.MemWide = 8 * (1+func3);
+			ID_EX.sign.Mem2Reg=1;
+			ID_EX.sign.MemWide = R_pow(2,3+func3);
 			break;
 		}
-		case 0x13:{
-			ID_EX.sign.MemRe = ID_EX.sign.MemWr = 0;
-			ID_EX.sign.MemWide = 32;
+		case 0x13:{          //64bit algorithm
+
 			if(func3 == 0){
 				ID_EX.sign.ALUCtr = ALU_ADD;
 			}else if(func3 == 1){
@@ -370,18 +373,14 @@ void inst_2_sig_I(){
 			}
 			break;
 		}
-		case 0x1B:{
-			ID_EX.sign.MemRe = ID_EX.sign.MemWr = 0;
-			ID_EX.sign.MemWide = 32;
+		case 0x1B:{        //addiw
 			ID_EX.sign.ALUCtr = ALU_ADD;
 			break;
 		}
-		case 0x67:{            //jalr
-			ID_EX.AluSrc1 = PC;
+		case 0x67:{            //jalr ret
+			ID_EX.AluSrc1 = IF_ID.PC;
 			ID_EX.AluSrc2 = 4;
 			ID_EX.sign.ALUCtr = ALU_ADD;
-			ID_EX.sign.MemRe = ID_EX.sign.MemWr = 0;
-			ID_EX.sign.MemWide = 32;
 			//直接计算得到新的PC地址
 			PC = ID_EX.Rs1 + imm12;
 			if(PC % 2 == 1){
@@ -392,8 +391,7 @@ void inst_2_sig_I(){
 		}
 		case 0x73:{          //ecall       TODO
 			ID_EX.sign.ALUCtr = ALU_ADD;
-			ID_EX.sign.MemRe = ID_EX.sign.MemWr = 0;
-			ID_EX.sign.MemWide = 32;
+			ID_EX.sign.RegWr = 0;
 			break;
 		}
 
@@ -403,48 +401,44 @@ void inst_2_sig_S(){
 	if(OP == 0x23){       //S指令
 		ID_EX.sign.MemWr = 1;
 		ID_EX.sign.MemRe = 0;
-		ID_EX.sign.MemWide = (func3 + 1) * 8;
+		ID_EX.sign.MemWide = R_pow(2,func3+3);
 		ID_EX.AluSrc1 = reg[rs1];
 		ID_EX.AluSrc2 = (imm7 << 5) | imm5;
-		ID_EX.AluSrc2 = (ID_EX.AluSrc2 << 20) >> 20;
+		ID_EX.AluSrc2 = R_ext_signed(ID_EX.AluSrc2,12);
 		ID_EX.sign.ALUCtr = ALU_ADD;
-		ID_EX.sign.PCSel = 0;
+		ID_EX.sign.RegWr = 0;
 	}else if(OP == 0x63){        //SB指令,条件跳转
 		ID_EX.sign.MemWr = 0;
 		ID_EX.sign.MemRe = 0;
 		ID_EX.sign.MemWide = 32;
+		ID_EX.sign.RegWr = 0;
 		ID_EX.AluSrc1 = reg[rs1];
 		ID_EX.AluSrc2 = reg[rs2];
 		ID_EX.sign.ALUCtr = ALU_SUB;
 		unsigned offset = 0;
-		offset = (imm5 & 0x1E) | ( (imm5&1) << 11) | ((imm7&0x40) << 12) | ((imm7&0x3f) << 5);
-		NEW_PC = PC + offset; 
+		offset = (imm5 & 0x1E) | ( (imm5&1) << 11) | ((imm7&0x40) << 6) | ((imm7&0x3f) << 5);
+		offset = R_ext_signed(offset,13);
+		NEW_PC = IF_ID.PC + offset;
+		if(EX_MEM.PC != ID_EX.PC)
+			IF_SHOULD_STOP = 1;
 	}
 }
 void inst_2_sig_U(){
 	ID_EX.sign.MemRe = ID_EX.sign.MemWr = 0;
 	ID_EX.sign.MemWide = 32;
-	ID_EX.AluSrc1 = PC;
-	ID_EX.AluSrc2 = imm20 << 12;
+	ID_EX.AluSrc1 = IF_ID.PC;
+	ID_EX.AluSrc2 = R_ext_signed(imm20 << 12,32);
 	ID_EX.sign.ALUCtr = ALU_ADD;
+	ID_EX.sign.RegWr = 1;
 	if(OP == 0x37){
 		ID_EX.AluSrc1 = 0;
 	}else if(OP == 0x6f){
 		ID_EX.AluSrc2 = 4;
 		unsigned offset = (R_getbit(imm20,9,18) << 1) | (R_getbit(imm20,8,8) << 11);
 		offset |= (R_getbit(imm20,19,19) << 20) | (R_getbit(imm20,0,7) << 12);
-		PC = PC + offset;
+		offset = R_ext_signed(offset,21);
+		PC = IF_ID.PC + offset;
 	}
 
 }
 
-
-unsigned R_getbit(unsigned inst,int b,int e){
-	unsigned t0 = (1 << e) -1;
-	unsigned t1 = t0 & inst;
-	return t1 >> b;
-}
-
-void ERROR(unsigned inst,unsigned func3,unsigned func7,unsigned OP){
-	printf("Error! unvalid inst! OP=%x,func3=%x,func7=%x,inst=%x\n",OP,func3,func7,inst);
-}

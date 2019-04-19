@@ -1,8 +1,10 @@
 #include <elf.h>
 #include "Reg_def.h"
 
-extern Elf64_Addr memory_offset_2_elf;
-
+//主存
+unsigned int memory[100000000]={0};
+//内存数组相对于elf要求的内存地址的偏移，offset + elf_addr = memory_addr
+Elf64_Addr memory_offset_2_elf;
 
 Elf64_Addr elf_mem_2_mem(Elf64_Addr elf_addr){
 	return elf_addr + memory_offset_2_elf;
@@ -53,4 +55,8 @@ void memory_write(Elf64_Addr elf_addr,unsigned mem_width,REG data){
             break;
         }
     }
+}
+
+void print_memory(Elf64_Addr begin_addr,Elf64_Addr end_addr){
+    
 }
