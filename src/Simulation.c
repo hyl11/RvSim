@@ -26,6 +26,7 @@ int main(int argc,char* argv[])
 	char path[200];
 	printf("请输入二进制文件的绝对路径\n");
 	scanf("%s",path);
+//	char* path="/home/lhy/Desktop/RvSim/testcase/mul-div";
 	read_elf(path);
 
 	//设置入口地址
@@ -277,7 +278,8 @@ void WB(){
 void inst_2_sig(){
 	
 	switch(OP){
-		case 0x33:{
+		case 0x33:
+		case 0x3B:{
 			inst_2_sig_R();
 			reg_using[ID_EX.inst.rd] += ID_EX.sign.RegWr;
 			break;
@@ -411,8 +413,24 @@ void inst_2_sig_I(){
 			}
 			break;
 		}
-		case 0x1B:{        //addiw
-			ID_EX.sign.ALUCtr = ALU_ADD;
+		case 0x1B:{        //64 bit algorithm
+			switch(func3){
+				case 0x0:{       //addiw
+					ID_EX.sign.ALUCtr = ALU_ADD;
+					break;
+				}
+				case 0x1:{      //slliw
+					ID_EX.AluSrc2 = R_getbit(imm12,0,5);
+					ID_EX.sign.ALUCtr = ALU_SL;
+					break;
+				}
+				case 0x5:{         //srli  srai
+					ID_EX.sign.ALUCtr = ALU_SR;
+					ID_EX.AluSrc2 = R_getbit(imm12,0,5);
+					break;
+				}
+			}
+			
 			break;
 		}
 		case 0x67:{            //jalr ret
