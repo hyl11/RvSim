@@ -1,6 +1,7 @@
 #include "Simulation.h"
 #include "util.h"
 #include <stdio.h>
+#include <string.h>
 
 
 extern void read_elf(char* path);
@@ -8,6 +9,8 @@ unsigned int endPC = 0;;
 extern unsigned int entry_of_elf;
 extern REG memory_read(Elf64_Addr elf_addr,unsigned mem_width);
 extern void memory_write(Elf64_Addr elf_adr,unsigned mem_width,REG data);
+void print_memory(Elf64_Addr begin_addr,int bytes);
+
 //指令运行数
 long long inst_num=0;
 
@@ -17,22 +20,30 @@ int exit_flag=0;
 unsigned int IF_SHOULD_STOP=0;      //译码阶段发现条件跳转指令，设置取指阶段等待       
 int NEW_PC = 0;
 
-int main()
+int main(int argc,char* argv[])
 {
 	//解析elf文件,并读取至模拟内存
-	char* path ="/home/lhy/Desktop/RvSim/testcase/add";
-	//scanf("%s",path);
+	char path[200];
+	printf("请输入二进制文件的绝对路径\n");
+	scanf("%s",path);
 	read_elf(path);
 
 	//设置入口地址
 	PC=entry_of_elf;
 	
-	//设置全局数据段地址寄存器
-//	reg[3]=gp;
-	
 	reg[2]=100000000/2;//栈基址 （sp寄存器）
 
 	simulate();
+	if(argc != 1){
+		if(strcmp(argv[1],"-memory") == 0){
+			Elf64_Addr mem = 0;
+			int bytes = 0;
+			printf("请输入要打印的内存地址和字节数，字节数是16的整数倍,内存地址16进制表示,空格隔开\n");
+			scanf("%x %d",&mem,&bytes);
+			print_memory(mem,bytes);
+		}
+	}
+	printf("total inst circle num is %d\n",inst_num);
 
 	printf("simulate over!\n");
 
@@ -43,9 +54,9 @@ void simulate()
 {
 	//结束PC的设置
 	int end=(int)endPC/4-1;
-	while(PC)
+	while(PC<=endPC)
 	{
-
+		inst_num ++;
 		//运行
 		WB();
 		MEM();
@@ -190,15 +201,39 @@ void EX(){
 	unsigned opcode = ID_EX.inst.opcode;
 	unsigned func = ID_EX.inst.func3;
 	if(opcode == 0x63){
-		if(func == 0 && ALU_OUT_result == 0){
-			PC = NEW_PC;
-		}else if(func == 1 && ALU_OUT_result != 0){
-			PC = NEW_PC;
-		}else if((func == 4 || func == 6)&& (int long long)ALU_OUT_result < 0){
-			PC = NEW_PC;
-		}else if((func == 5 || func == 7)&& (int long long)ALU_OUT_result >= 0){
-			PC == NEW_PC;
+		switch(func){
+			case 0:{
+				if(ALU_OUT_result == 0)
+					PC = NEW_PC;
+				break;
+			}
+			case 1:{
+				if(ALU_OUT_result != 0)
+					PC = NEW_PC;
+				break;
+			}
+			case 4:
+			case 6:{
+				if((long long)ALU_OUT_result < 0)
+					PC = NEW_PC;
+				break;
+			}
+			case 5:
+			case 7:{
+				if((long long)ALU_OUT_result >= 0)
+					PC = NEW_PC;
+				break;
+			}
 		}
+//		if(func == 0 && ALU_OUT_result == 0){
+//			PC = NEW_PC;
+//		}else if(func == 1 && ALU_OUT_result != 0){
+//			PC = NEW_PC;
+//		}else if((func == 4 || func == 6) && ((long long)ALU_OUT_result < 0)){
+//			PC = NEW_PC;
+//		}else if((func == 5 || func == 7) && ((long long)ALU_OUT_result >= 0)){
+//			PC == NEW_PC;
+//		}
 	}
 }
 
@@ -274,10 +309,12 @@ void inst_2_sig_R(){
 
 	ID_EX.AluSrc1 = ID_EX.Rs1 =  reg[rs1];
 	ID_EX.AluSrc2 = ID_EX.Rs2 = reg[rs2];
+
 	ID_EX.sign.MemRe = ID_EX.sign.MemWr = 0;
 	ID_EX.sign.MemWide = 32;
 	ID_EX.sign.Mem2Reg = 0;
 	ID_EX.sign.RegWr = 1;
+
 	switch(func3){
 		//加减乘（不考虑溢出）
 		case 0:{
@@ -342,6 +379,7 @@ void inst_2_sig_I(){
 	ID_EX.sign.Mem2Reg = 0;
 	ID_EX.sign.MemRe = ID_EX.sign.MemWr = 0;
 	ID_EX.sign.MemWide = 32;
+	ID_EX.sign.Mem2Reg = 0;
 
 	switch(OP){
 		case 0x03:{     //load
@@ -382,11 +420,13 @@ void inst_2_sig_I(){
 			ID_EX.AluSrc2 = 4;
 			ID_EX.sign.ALUCtr = ALU_ADD;
 			//直接计算得到新的PC地址
-			PC = ID_EX.Rs1 + imm12;
-			if(PC % 2 == 1){
-				PC -= 1;
+			NEW_PC = ID_EX.Rs1 + imm12;
+			if(NEW_PC % 2 == 1){
+				NEW_PC -= 1;
 			}
-
+			if(PC == NEW_PC)
+				exit_flag = 1;
+			PC=NEW_PC;
 			break;
 		}
 		case 0x73:{          //ecall       TODO
@@ -402,19 +442,25 @@ void inst_2_sig_S(){
 		ID_EX.sign.MemWr = 1;
 		ID_EX.sign.MemRe = 0;
 		ID_EX.sign.MemWide = R_pow(2,func3+3);
+		ID_EX.sign.ALUCtr = ALU_ADD;
+		ID_EX.sign.RegWr = 0;
+		ID_EX.sign.Mem2Reg = 0;
+
 		ID_EX.AluSrc1 = reg[rs1];
 		ID_EX.AluSrc2 = (imm7 << 5) | imm5;
 		ID_EX.AluSrc2 = R_ext_signed(ID_EX.AluSrc2,12);
-		ID_EX.sign.ALUCtr = ALU_ADD;
-		ID_EX.sign.RegWr = 0;
+
 	}else if(OP == 0x63){        //SB指令,条件跳转
 		ID_EX.sign.MemWr = 0;
 		ID_EX.sign.MemRe = 0;
 		ID_EX.sign.MemWide = 32;
 		ID_EX.sign.RegWr = 0;
+		ID_EX.sign.ALUCtr = ALU_SUB;
+		ID_EX.sign.Mem2Reg = 0;
+
 		ID_EX.AluSrc1 = reg[rs1];
 		ID_EX.AluSrc2 = reg[rs2];
-		ID_EX.sign.ALUCtr = ALU_SUB;
+
 		unsigned offset = 0;
 		offset = (imm5 & 0x1E) | ( (imm5&1) << 11) | ((imm7&0x40) << 6) | ((imm7&0x3f) << 5);
 		offset = R_ext_signed(offset,13);
@@ -426,10 +472,13 @@ void inst_2_sig_S(){
 void inst_2_sig_U(){
 	ID_EX.sign.MemRe = ID_EX.sign.MemWr = 0;
 	ID_EX.sign.MemWide = 32;
-	ID_EX.AluSrc1 = IF_ID.PC;
-	ID_EX.AluSrc2 = R_ext_signed(imm20 << 12,32);
 	ID_EX.sign.ALUCtr = ALU_ADD;
 	ID_EX.sign.RegWr = 1;
+	ID_EX.sign.Mem2Reg = 0;
+
+	ID_EX.AluSrc1 = IF_ID.PC;
+	ID_EX.AluSrc2 = R_ext_signed(imm20 << 12,32);
+
 	if(OP == 0x37){
 		ID_EX.AluSrc1 = 0;
 	}else if(OP == 0x6f){
@@ -437,7 +486,10 @@ void inst_2_sig_U(){
 		unsigned offset = (R_getbit(imm20,9,18) << 1) | (R_getbit(imm20,8,8) << 11);
 		offset |= (R_getbit(imm20,19,19) << 20) | (R_getbit(imm20,0,7) << 12);
 		offset = R_ext_signed(offset,21);
-		PC = IF_ID.PC + offset;
+		NEW_PC = IF_ID.PC + offset;
+		if(PC == NEW_PC)
+			exit_flag = 1;
+		PC = NEW_PC;
 	}
 
 }
