@@ -17,8 +17,10 @@ long long inst_num=0;
 //系统调用退出指示
 int exit_flag=0;
 
-unsigned int IF_SHOULD_STOP=0;      //译码阶段发现条件跳转指令，设置取指阶段等待       
+unsigned int IF_SHOULD_STOP=0;      //译码阶段发现条件跳转指令，设置取指阶段等待
+unsigned int ID_SHOULD_STOP=0;      //译码阶段发现条件跳转，设置下一个周期不进行译码，只等待exe阶段的执行结果
 int NEW_PC = 0;
+int debug_PC = 0;
 
 int main(int argc,char* argv[])
 {
@@ -26,13 +28,20 @@ int main(int argc,char* argv[])
 	char path[200];
 	printf("请输入二进制文件的绝对路径\n");
 	scanf("%s",path);
-//	char* path="/home/lhy/Desktop/RvSim/testcase/mul-div";
+//	char* path="/home/lhy/Desktop/RvSim/testcase/n";
 	read_elf(path);
 
 	//设置入口地址
 	PC=entry_of_elf;
 	
 	reg[2]=100000000/2;//栈基址 （sp寄存器）
+
+	if(argc != 1){
+		if(strcmp(argv[1],"-g") == 0){   //debug
+			printf("输入debug的PC值\n");
+			scanf("%x",&debug_PC);
+		}
+	}
 
 	simulate();
 	if(argc != 1){
@@ -58,17 +67,24 @@ void simulate()
 	while(PC<=endPC)
 	{
 		inst_num ++;
+
 		//运行
 		WB();
 		MEM();
 		EX();
 		ID();
+
+		if(PC==debug_PC){
+			int t = 0;
+		}
+
 		IF();
 
         if(exit_flag==1)
             break;
 
         reg[0]=0;//一直为零
+        reg_using[0] = 0;
 	}
 }
 
@@ -106,6 +122,12 @@ void ID()
 	//检查寄存器是否存在数据冒险，存在则暂停一周期        //TODO
 	if(reg_using[rs1] > 0 || reg_using[rs2] > 0){
 		IF_SHOULD_STOP = 1;
+		ID_EX.isAbuble = 1;
+		return;
+	}
+	//检查当前指令是否已经发送给exe阶段，如果是，则直接退出，插入空操作
+	if(ID_SHOULD_STOP == 1){
+		ID_SHOULD_STOP = 0;
 		ID_EX.isAbuble = 1;
 		return;
 	}
@@ -434,11 +456,12 @@ void inst_2_sig_I(){
 			break;
 		}
 		case 0x67:{            //jalr ret
+
 			ID_EX.AluSrc1 = IF_ID.PC;
 			ID_EX.AluSrc2 = 4;
 			ID_EX.sign.ALUCtr = ALU_ADD;
 			//直接计算得到新的PC地址
-			NEW_PC = ID_EX.Rs1 + imm12;
+			NEW_PC = ID_EX.Rs1 + R_ext_signed(imm12,12);
 			if(NEW_PC % 2 == 1){
 				NEW_PC -= 1;
 			}
@@ -483,8 +506,10 @@ void inst_2_sig_S(){
 		offset = (imm5 & 0x1E) | ( (imm5&1) << 11) | ((imm7&0x40) << 6) | ((imm7&0x3f) << 5);
 		offset = R_ext_signed(offset,13);
 		NEW_PC = IF_ID.PC + offset;
-		if(EX_MEM.PC != ID_EX.PC)
+		if(EX_MEM.PC != ID_EX.PC){
+			ID_SHOULD_STOP = 1;
 			IF_SHOULD_STOP = 1;
+		}
 	}
 }
 void inst_2_sig_U(){
@@ -505,7 +530,7 @@ void inst_2_sig_U(){
 		offset |= (R_getbit(imm20,19,19) << 20) | (R_getbit(imm20,0,7) << 12);
 		offset = R_ext_signed(offset,21);
 		NEW_PC = IF_ID.PC + offset;
-		if(PC == NEW_PC)
+		if(ID_EX.PC == NEW_PC)
 			exit_flag = 1;
 		PC = NEW_PC;
 	}
