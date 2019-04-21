@@ -1,6 +1,9 @@
 #include <elf.h>
 #include "Reg_def.h"
 #include <stdio.h>
+
+extern REG R_ext_signed(int src,int bit);
+
 //主存
 unsigned int memory[100000000]={0};
 //内存数组相对于elf要求的内存地址的偏移，offset + elf_addr = memory_addr
@@ -18,14 +21,17 @@ REG memory_read(Elf64_Addr elf_addr,unsigned mem_width){
     switch(mem_width){
         case 8:{
             result = *(unsigned char*)mem_addr;
+            result = R_ext_signed(result,8);
             break;
         }
         case 16:{
             result = *(unsigned short*)mem_addr;
+            result = R_ext_signed(result,16);
             break;
         }
         case 32:{
             result = *(unsigned int*)mem_addr;
+            result = R_ext_signed(result,32);
             break;
         }
         case 64:{
