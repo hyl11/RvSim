@@ -12,7 +12,10 @@ extern void memory_write(Elf64_Addr elf_adr,unsigned mem_width,REG data);
 void print_memory(Elf64_Addr begin_addr,int bytes);
 
 //指令运行数
-long long inst_num=0;
+unsigned inst_circles=0;
+unsigned inst_num = 0;
+unsigned stall_circles = 0; 
+unsigned stall_data_circles = 0;
 
 //系统调用退出指示
 int exit_flag=0;
@@ -53,8 +56,10 @@ int main(int argc,char* argv[])
 			print_memory(mem,bytes);
 		}
 	}
-	printf("total inst circle num is %d\n",inst_num);
-
+    printf("动态指令数：        %d\n",inst_num);
+	printf("指令周期数：        %d\n",inst_circles);
+    printf("停顿周期数：        %d\n",stall_circles);
+    printf("数据冒险停顿周期数： %d\n",stall_data_circles);
 	printf("simulate over!\n");
 
 	return 0; 
@@ -66,7 +71,7 @@ void simulate()
 	int end=(int)endPC/4-1;
 	while(PC<=endPC)
 	{
-		inst_num ++;
+		inst_circles ++;
 
 		//运行
 		WB();
@@ -95,6 +100,7 @@ void IF()
 	//判断是否可以取指令，如果正在分析的指令存在控制冒险，则选择插入停顿，等待冒险
 	if(IF_SHOULD_STOP != 0){
 		IF_SHOULD_STOP =0;
+                 stall_circles ++;
 		return;
 	}
 	IF_ID.inst=memory_read(PC,32) & 0xffffffff;
@@ -123,6 +129,7 @@ void ID()
 	if(reg_using[rs1] > 0 || reg_using[rs2] > 0){
 		IF_SHOULD_STOP = 1;
 		ID_EX.isAbuble = 1;
+		stall_data_circles ++;
 		return;
 	}
 	//检查当前指令是否已经发送给exe阶段，如果是，则直接退出，插入空操作
@@ -287,6 +294,7 @@ void WB(){
 	if(MEM_WB.isAbuble == 1){
 		return;
 	}else if(MEM_WB.sign.RegWr == 0){
+                 inst_num ++;
 		return;
 	}else if(MEM_WB.sign.Mem2Reg == 1){      //访问内存操作
 		reg[rd] = MEM_WB.MemOut;
@@ -296,6 +304,7 @@ void WB(){
 	if(reg_using[rd] > 0){
 		reg_using[rd] --;
 	}
+        inst_num ++;
 }
 void inst_2_sig(){
 	
@@ -522,9 +531,9 @@ void inst_2_sig_U(){
 	ID_EX.AluSrc1 = IF_ID.PC;
 	ID_EX.AluSrc2 = R_ext_signed(imm20 << 12,32);
 
-	if(OP == 0x37){
+	if(OP == 0x37){      
 		ID_EX.AluSrc1 = 0;
-	}else if(OP == 0x6f){
+	}else if(OP == 0x6f){       //直接跳转指令
 		ID_EX.AluSrc2 = 4;
 		unsigned offset = (R_getbit(imm20,9,18) << 1) | (R_getbit(imm20,8,8) << 11);
 		offset |= (R_getbit(imm20,19,19) << 20) | (R_getbit(imm20,0,7) << 12);
